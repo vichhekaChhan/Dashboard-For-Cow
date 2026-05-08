@@ -1,0 +1,163 @@
+.dashboard-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #333;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.dashboard-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.8rem;
+  color: #2c3e50;
+}
+
+.status-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.status-badge.connected {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-badge.disconnected {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.dashboard-main {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 768px) {
+  .dashboard-main {
+    grid-template-columns: 1fr 2fr;
+  }
+}
+
+.current-weight-card, .history-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  border: 1px solid #eaeaea;
+}
+
+.current-weight-card h2, .history-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #4a5568;
+  font-size: 1.25rem;
+}
+
+.weight-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.scale-icon {
+  color: #3182ce;
+  margin-bottom: 1rem;
+}
+
+.weight-info {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.weight-value {
+  font-size: 4rem;
+  font-weight: 700;
+  color: #2b6cb0;
+  line-height: 1;
+}
+
+.weight-unit {
+  font-size: 1.5rem;
+  color: #718096;
+  font-weight: 600;
+}
+
+.device-id {
+  margin-top: 1rem;
+  background: #f7fafc;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-family: monospace;
+  color: #4a5568;
+  font-size: 0.9rem;
+}
+
+.waiting-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
+  color: #a0aec0;
+}
+
+.waiting-state p {
+  margin-top: 1rem;
+  font-weight: 500;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+th {
+  background-color: #f8fafc;
+  padding: 0.75rem 1rem;
+  color: #4a5568;
+  font-weight: 600;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: #4a5568;
+}
+
+.font-bold {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #a0aec0;
+}
