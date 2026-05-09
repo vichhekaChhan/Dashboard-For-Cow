@@ -343,7 +343,7 @@ function WalkScaleDashboardContent() {
             />
             {!collapsed && (
               <div>
-                <Title level={5} style={{ margin: 0, lineHeight: 1.2, fontSize: 14 }}>WalkScale</Title>
+                <Title level={5} style={{ margin: 0, lineHeight: 1.2, fontSize: 14 }}>Dashboard</Title>
                 <Text type="secondary" style={{ fontSize: 11 }}>v1.0 · LoRa</Text>
               </div>
             )}
