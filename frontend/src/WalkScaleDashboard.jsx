@@ -15,6 +15,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Layout, Menu, Card, Row, Col, Statistic, Table, Tag, Badge,
   Typography, Space, Button, Tooltip, Divider, Empty, Alert,
@@ -25,7 +26,7 @@ import {
   UnorderedListOutlined, ExportOutlined, SettingOutlined,
   QuestionCircleOutlined, UserOutlined, WifiOutlined,
   DisconnectOutlined, RadarChartOutlined, ThunderboltOutlined,
-  ClockCircleOutlined, ApiOutlined,
+  ClockCircleOutlined, ApiOutlined, LogoutOutlined
 } from '@ant-design/icons';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -44,17 +45,17 @@ const SIMULATE_INTERVAL_MS = 3500;
 const MAX_CHART_POINTS = 20;
 const MAX_TABLE_ROWS = 50;
 
-const MOCK_DEVICES = ['LORA-A1B2', 'LORA-C3D4', 'LORA-E5F6', 'LORA-G7H8'];
-const DEVICE_COLORS = {
-  'LORA-A1B2': 'blue',
-  'LORA-C3D4': 'green',
-  'LORA-E5F6': 'purple',
-  'LORA-G7H8': 'orange',
+const MOCK_COWS = ['COW-1', 'COW-2', 'COW-3', 'COW-4'];
+const COW_COLORS = {
+  'COW-1': 'blue',
+  'COW-2': 'green',
+  'COW-3': 'purple',
+  'COW-4': 'orange',
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function randomWeight() {
-  return parseFloat((Math.random() * 180 + 40).toFixed(1));
+  return parseFloat((Math.random() * (400 - 80) + 80).toFixed(1));
 }
 function formatTime(iso) {
   const d = new Date(iso);
@@ -64,8 +65,8 @@ function formatDateTime(iso) {
   const d = new Date(iso);
   return d.toLocaleString('en-US', { hour12: false });
 }
-function getDeviceColor(id) {
-  return DEVICE_COLORS[id] || 'default';
+function getCowColor(id) {
+  return COW_COLORS[id] || 'default';
 }
 
 // ── Sidebar nav items ────────────────────────────────────────────────────────
@@ -86,20 +87,20 @@ const columns = [
     render: (v) => <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text>,
   },
   {
-    title: 'Device ID',
-    dataIndex: 'device_id',
-    key: 'device_id',
+    title: 'Cow Tag',
+    dataIndex: 'cow_tag',
+    key: 'cow_tag',
     render: (id) => (
       <Tag
         icon={<RadarChartOutlined />}
-        color={getDeviceColor(id)}
+        color={getCowColor(id)}
         style={{ fontFamily: 'monospace', fontSize: 12 }}
       >
         {id}
       </Tag>
     ),
-    filters: MOCK_DEVICES.map((d) => ({ text: d, value: d })),
-    onFilter: (value, record) => record.device_id === value,
+    filters: MOCK_COWS.map((d) => ({ text: d, value: d })),
+    onFilter: (value, record) => record.cow_tag === value,
   },
   {
     title: 'Weight',
@@ -108,26 +109,47 @@ const columns = [
     sorter: (a, b) => a.weight_kg - b.weight_kg,
     render: (w) => (
       <Text strong style={{ fontFamily: 'monospace', fontSize: 14 }}>
-        {w.toFixed(1)} kg
+        {parseFloat(w).toFixed(1)} kg
+      </Text>
+    ),
+  },
+  {
+    title: 'Age',
+    dataIndex: 'age_months',
+    key: 'age_months',
+    render: (age) => (
+      <Text style={{ fontSize: 13 }}>
+        {age != null ? `${age} mos` : '—'}
       </Text>
     ),
   },
   {
     title: 'Timestamp',
-    dataIndex: 'timestamp',
     key: 'timestamp',
-    render: (ts) => (
-      <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 12 }}>
-        {formatDateTime(ts)}
-      </Text>
-    ),
+    render: (_, record) => {
+      let ts = record.timestamp || new Date().toISOString();
+      if (record.recorded_date) {
+        const datePart = typeof record.recorded_date === 'string' ? record.recorded_date.split('T')[0] : new Date(record.recorded_date).toISOString().split('T')[0];
+        ts = `${datePart}T${record.recorded_time}`;
+      }
+      return (
+        <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 12 }}>
+          {formatDateTime(ts)}
+        </Text>
+      );
+    },
   },
   {
-    title: 'Status',
-    key: 'status',
-    render: () => (
-      <Badge status="success" text={<Text style={{ fontSize: 12 }}>Logged</Text>} />
-    ),
+    title: 'Health Status',
+    dataIndex: 'health_status',
+    key: 'health_status',
+    render: (status) => {
+      let color = 'default';
+      if (status === 'Healthy') color = 'success';
+      if (status === 'Underweight') color = 'warning';
+      if (status === 'Overweight') color = 'error';
+      return <Badge status={color} text={<Text style={{ fontSize: 12 }}>{status || 'Unknown'}</Text>} />;
+    },
   },
 ];
 
@@ -141,8 +163,8 @@ function ChartTooltip({ active, payload, label }) {
         {payload[0].value.toFixed(1)} kg
       </Text>
       <br />
-      <Tag size="small" color={getDeviceColor(payload[0]?.payload?.device_id)} style={{ fontSize: 10, marginTop: 4 }}>
-        {payload[0]?.payload?.device_id}
+      <Tag size="small" color={getCowColor(payload[0]?.payload?.cow_tag)} style={{ fontSize: 10, marginTop: 4 }}>
+        {payload[0]?.payload?.cow_tag}
       </Tag>
     </Card>
   );
@@ -174,6 +196,7 @@ class ErrorBoundary extends React.Component {
 
 // ── Main Dashboard Component ──────────────────────────────────────────────────
 function WalkScaleDashboardContent() {
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [selectedKey, setSelectedKey] = useState('dashboard');
   const [socketConnected, setSocketConnected] = useState(false);
@@ -181,7 +204,7 @@ function WalkScaleDashboardContent() {
 
   const [logs, setLogs] = useState([]);
   const [chartData, setChartData] = useState([]);
-  const [deviceMap, setDeviceMap] = useState({});
+  const [cowMap, setCowMap] = useState({});
   const [latestEntry, setLatestEntry] = useState(null);
   const [readingCount, setReadingCount] = useState(0);
 
@@ -189,18 +212,32 @@ function WalkScaleDashboardContent() {
   const simRef = useRef(null);
   const countRef = useRef(0);
 
+  // User details
+  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user') || '{}'));
+
+  // ── Logout Handler ────────────────────────────────────────────────────────
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login'; // Force reload to clear axios headers
+  };
+
   // ── Ingest a new reading ──────────────────────────────────────────────────
   const ingestReading = useCallback((payload) => {
-    if (!payload || !payload.device_id || payload.weight_kg === undefined) return;
+    if (!payload || !payload.cow_tag || payload.weight_kg === undefined) return;
     
-    const device_id = payload.device_id;
+    const cow_tag = payload.cow_tag;
     const weight_kg = parseFloat(payload.weight_kg);
     if (isNaN(weight_kg)) return;
     
-    const timestamp = payload.timestamp || new Date().toISOString();
+    let timestamp = payload.timestamp || new Date().toISOString();
+    if (payload.recorded_date) {
+        const datePart = typeof payload.recorded_date === 'string' ? payload.recorded_date.split('T')[0] : new Date(payload.recorded_date).toISOString().split('T')[0];
+        timestamp = `${datePart}T${payload.recorded_time}`;
+    }
 
     countRef.current += 1;
-    const entry = { device_id, weight_kg, timestamp, index: countRef.current, key: `${timestamp}-${countRef.current}` };
+    const entry = { cow_tag, weight_kg, timestamp, age_months: payload.age_months, health_status: payload.health_status, index: countRef.current, key: `${timestamp}-${countRef.current}` };
 
     setReadingCount(countRef.current);
     setLatestEntry(entry);
@@ -211,14 +248,14 @@ function WalkScaleDashboardContent() {
     });
 
     setChartData((prev) => {
-      const point = { time: formatTime(timestamp), weight_kg, device_id };
+      const point = { time: formatTime(timestamp), weight_kg, cow_tag };
       return [...(prev || []), point].slice(-MAX_CHART_POINTS);
     });
 
-    setDeviceMap((prev) => ({
+    setCowMap((prev) => ({
       ...(prev || {}),
-      [device_id]: {
-        count: ((prev && prev[device_id]?.count) || 0) + 1,
+      [cow_tag]: {
+        count: ((prev && prev[cow_tag]?.count) || 0) + 1,
         lastWeight: weight_kg,
         lastSeen: timestamp,
       },
@@ -227,23 +264,30 @@ function WalkScaleDashboardContent() {
 
   // ── Fetch historical data on mount ──────────────────────────────────────────
   useEffect(() => {
-    fetch(`${SOCKET_URL}/api/weight-log?limit=50`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          // data is descending from DB (newest first). Let's ingest them from oldest to newest to build correct chart & logs order.
-          // Note: logs table expects newest first, which ingestReading already does via [entry, ...prev]
-          data.reverse().forEach((row) => {
-            // Need numeric values
-            ingestReading({
-              device_id: row.device_id,
-              weight_kg: parseFloat(row.weight_kg),
-              timestamp: row.timestamp || new Date().toISOString()
+    import('axios').then(({ default: axios }) => {
+      axios.get('/api/weight-records?limit=50')
+        .then((res) => {
+          if (Array.isArray(res.data)) {
+            // data is descending from DB (newest first). Let's ingest them from oldest to newest to build correct chart & logs order.
+            res.data.reverse().forEach((row) => {
+              ingestReading({
+                cow_tag: row.cow_tag,
+                weight_kg: parseFloat(row.weight_kg),
+                recorded_date: row.recorded_date,
+                recorded_time: row.recorded_time,
+                health_status: row.health_status,
+                age_months: row.age_months
+              });
             });
-          });
-        }
-      })
-      .catch((err) => console.error('Failed to fetch weight history:', err));
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to fetch cow weight history:', err);
+          if (err.response?.status === 401 || err.response?.status === 403) {
+            handleLogout();
+          }
+        });
+    });
   }, [ingestReading]);
 
   // ── Socket.io connection ──────────────────────────────────────────────────
@@ -263,11 +307,11 @@ function WalkScaleDashboardContent() {
       ingestReading(payload);
     };
 
-    socketRef.current.on('new_weight', handleNewWeight);
+    socketRef.current.on('new_weight_record', handleNewWeight);
     
     return () => {
       if (socketRef.current) {
-        socketRef.current.off('new_weight', handleNewWeight);
+        socketRef.current.off('new_weight_record', handleNewWeight);
         socketRef.current.disconnect();
       }
     };
@@ -281,10 +325,12 @@ function WalkScaleDashboardContent() {
     }
     simRef.current = setInterval(() => {
       if (Math.random() < 0.65) {
+        const weight = randomWeight();
         ingestReading({
-          device_id: MOCK_DEVICES[Math.floor(Math.random() * MOCK_DEVICES.length)],
-          weight_kg: randomWeight(),
+          cow_tag: MOCK_COWS[Math.floor(Math.random() * MOCK_COWS.length)],
+          weight_kg: weight,
           timestamp: new Date().toISOString(),
+          health_status: 'Simulated' // Will be accurately calculated by backend actual records
         });
       }
     }, SIMULATE_INTERVAL_MS);
@@ -296,15 +342,17 @@ function WalkScaleDashboardContent() {
   const avgWeight = validLogs.length
     ? (validLogs.reduce((s, l) => s + (l.weight_kg || 0), 0) / validLogs.length).toFixed(1)
     : null;
-  const activeDevices = Object.keys(deviceMap || {}).length;
+  const activeCows = Object.keys(cowMap || {}).length;
   const systemOnline = readingCount > 0;
 
   // ── Trigger a single manual reading ──────────────────────────────────────
   const triggerManual = () => {
+    const weight = randomWeight();
     ingestReading({
-      device_id: MOCK_DEVICES[Math.floor(Math.random() * MOCK_DEVICES.length)],
-      weight_kg: randomWeight(),
+      cow_tag: MOCK_COWS[Math.floor(Math.random() * MOCK_COWS.length)],
+      weight_kg: weight,
       timestamp: new Date().toISOString(),
+      health_status: 'Simulated'
     });
   };
 
@@ -365,9 +413,13 @@ function WalkScaleDashboardContent() {
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
               <UserOutlined style={{ fontSize: 16, color: '#888' }} />
-              <div>
-                <Text style={{ fontSize: 13, display: 'block', lineHeight: 1.2 }}>Admin</Text>
-                <Text type="secondary" style={{ fontSize: 11 }}>admin@walkscale.io</Text>
+              <div style={{ overflow: 'hidden' }}>
+                <Text style={{ fontSize: 13, display: 'block', lineHeight: 1.2, textTransform: 'capitalize' }}>
+                  {user.username || 'User'}
+                </Text>
+                <Text type="secondary" style={{ fontSize: 11, display: 'block', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                  {user.email || 'user@walkscale.io'}
+                </Text>
               </div>
             </div>
           )}
@@ -394,6 +446,10 @@ function WalkScaleDashboardContent() {
                   {socketConnected ? 'Socket connected' : 'Simulation mode'}
                 </Tag>
               </Tooltip>
+
+              <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout}>
+                Logout
+              </Button>
             </Space>
           </Header>
 
@@ -445,12 +501,12 @@ function WalkScaleDashboardContent() {
               <Col xs={24} sm={12} lg={6}>
                 <Card size="small" style={{ borderRadius: 10 }}>
                   <Statistic
-                    title={<Space><DeploymentUnitOutlined />Active devices</Space>}
-                    value={activeDevices}
+                    title={<Space><DeploymentUnitOutlined />Active Cows</Space>}
+                    value={activeCows}
                     valueStyle={{ fontFamily: 'monospace', fontSize: 28, color: '#1890ff' }}
                   />
                   <Text type="secondary" style={{ fontSize: 11 }}>
-                    {activeDevices === 1 ? '1 LoRa node online' : `${activeDevices} LoRa nodes online`}
+                    {activeCows === 1 ? '1 Cow weighed' : `${activeCows} Cows weighed`}
                   </Text>
                 </Card>
               </Col>
@@ -477,7 +533,7 @@ function WalkScaleDashboardContent() {
               </Col>
             </Row>
 
-            {/* ── Current weight + Device list ── */}
+            {/* ── Current weight + Cow list ── */}
             <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
 
               {/* Current weight */}
@@ -488,8 +544,8 @@ function WalkScaleDashboardContent() {
                   style={{ borderRadius: 10, minHeight: 200 }}
                   extra={
                     latestEntry && (
-                      <Tag color={getDeviceColor(latestEntry.device_id)} icon={<RadarChartOutlined />}>
-                        {latestEntry.device_id}
+                      <Tag color={getCowColor(latestEntry.cow_tag)} icon={<RadarChartOutlined />}>
+                        {latestEntry.cow_tag}
                       </Tag>
                     )
                   }
@@ -501,7 +557,7 @@ function WalkScaleDashboardContent() {
                         <Space direction="vertical" size={2}>
                           <Text type="secondary">Waiting for scale...</Text>
                           <Text type="secondary" style={{ fontSize: 11 }}>
-                            System ready — POST to /api/weight-log
+                            System ready — POST to /api/weight-records
                           </Text>
                         </Space>
                       }
@@ -510,7 +566,7 @@ function WalkScaleDashboardContent() {
                   ) : (
                     <div style={{ textAlign: 'center', padding: '16px 0' }}>
                       <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        Weight reading
+                        Weight reading - {latestEntry.health_status}
                       </Text>
                       <div style={{
                         fontFamily: 'monospace', fontSize: 64, fontWeight: 600,
@@ -527,22 +583,22 @@ function WalkScaleDashboardContent() {
                 </Card>
               </Col>
 
-              {/* Device registry */}
+              {/* Cow registry */}
               <Col xs={24} lg={12}>
                 <Card
-                  title="Device registry"
+                  title="Cow Registry"
                   size="small"
                   style={{ borderRadius: 10, minHeight: 200 }}
                   extra={
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      {activeDevices} device{activeDevices !== 1 ? 's' : ''} seen
+                      {activeCows} cow{activeCows !== 1 ? 's' : ''} seen
                     </Text>
                   }
                 >
-                  {activeDevices === 0 ? (
-                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No devices detected yet" style={{ margin: '20px 0' }} />
+                  {activeCows === 0 ? (
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No cows weighed yet" style={{ margin: '20px 0' }} />
                   ) : (
-                    Object.entries(deviceMap).map(([id, info]) => (
+                    Object.entries(cowMap).map(([id, info]) => (
                       <div key={id} style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '8px 0', borderBottom: '1px solid #f0f0f0',
@@ -550,7 +606,7 @@ function WalkScaleDashboardContent() {
                         <Space>
                           <Badge status="processing" color="#1d9e75" />
                           <Tag
-                            color={getDeviceColor(id)}
+                            color={getCowColor(id)}
                             icon={<RadarChartOutlined />}
                             style={{ fontFamily: 'monospace', fontSize: 12 }}
                           >

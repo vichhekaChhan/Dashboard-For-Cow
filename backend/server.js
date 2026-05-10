@@ -19,6 +19,9 @@ const io = new Server(server, {
 const pool = require('./db');
 
 // Import and mount the API routes
+const authRoutes = require('./auth')(pool);
+app.use('/api/auth', authRoutes);
+
 const apiRoutes = require('./api')(pool, io);
 app.use('/api', apiRoutes);
 

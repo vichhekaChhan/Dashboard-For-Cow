@@ -12,9 +12,11 @@
   "dependencies": {
     "@ant-design/icons": "^6.2.2",
     "antd": "^6.3.7",
+    "axios": "^1.16.0",
     "lucide-react": "^1.14.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-router-dom": "^7.15.0",
     "recharts": "^3.8.1",
     "socket.io-client": "^4.8.3"
   },
